@@ -52,7 +52,7 @@
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-plugin-import": "^2.14.0",
     "husky": "^4.2.5",
-    "jest": "^25.3.0",
+    "jest": "^26.2.2",
     "json2csv": "^4.2.1",
     "ncp": "^2.0.0",
     "rimraf": "^3.0.0"
