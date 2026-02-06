@@ -402,6 +402,8 @@ class IsracardAmexBaseScraper extends BaseScraperWithBrowser<ScraperSpecificCred
   }
 
   async login(credentials: ScraperSpecificCredentials): Promise<ScraperScrapingResult> {
+    await maskHeadlessUserAgent(this.page);
+
     await this.page.setRequestInterception(true);
     this.page.on('request', request => {
       if (request.url().includes('detector-dom.min.js')) {
@@ -412,8 +414,12 @@ class IsracardAmexBaseScraper extends BaseScraperWithBrowser<ScraperSpecificCred
       }
     });
 
-    await maskHeadlessUserAgent(this.page);
+    // Navigate to homepage first to establish session
+    debug('warming up browser with homepage');
+    await this.navigateTo(this.baseUrl, 'domcontentloaded');
+    await sleep(1000);
 
+    debug('navigating to login page');
     await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
 
     this.emitProgress(ScraperProgressTypes.LoggingIn);
