@@ -426,6 +426,10 @@ class IsracardAmexBaseScraper extends BaseScraperWithBrowser<ScraperSpecificCred
     debug('clicking on password login link');
     await this.page.waitForSelector('#flip', { visible: true, timeout: 30000 });
     await this.page.click('#flip');
+
+    // Wait for the password form to appear after animation
+    debug('waiting for password form to appear');
+    await this.page.waitForSelector('#otpLoginId_ID', { visible: true, timeout: 30000 });
     await sleep(1000);
 
     this.emitProgress(ScraperProgressTypes.LoggingIn);
