@@ -2,22 +2,21 @@ import moment, { type Moment } from 'moment';
 import { type Page } from 'puppeteer';
 import { SHEKEL_CURRENCY } from '../constants';
 import { getDebug } from '../helpers/debug';
-import { clickButton, fillInput, pageEval, pageEvalAll, waitUntilElementFound } from '../helpers/elements-interactions';
+import { clickButton, fillInput, pageEvalAll, waitUntilElementFound } from '../helpers/elements-interactions';
 import { getRawTransaction } from '../helpers/transactions';
-import { waitForNavigation } from '../helpers/navigation';
 import { TransactionStatuses, TransactionTypes, type Transaction, type TransactionsAccount } from '../transactions';
 import { BaseScraperWithBrowser, LoginResults, type LoginOptions } from './base-scraper-with-browser';
 import { type ScraperOptions, type ScraperScrapingResult } from './interface';
 
 const debug = getDebug('leumi');
 const BASE_URL = 'https://hb2.bankleumi.co.il';
-const LOGIN_URL = 'https://www.leumi.co.il/he';
+const LOGIN_URL = 'https://hb2.bankleumi.co.il/H/Login.html';
 const TRANSACTIONS_URL = `${BASE_URL}/eBanking/SO/SPA.aspx#/ts/BusinessAccountTrx?WidgetPar=1`;
 const FILTERED_TRANSACTIONS_URL = `${BASE_URL}/ChannelWCF/Broker.svc/ProcessRequest?moduleName=UC_SO_27_GetBusinessAccountTrx`;
 
 const DATE_FORMAT = 'DD.MM.YY';
 const ACCOUNT_BLOCKED_MSG = 'המנוי חסום';
-const INVALID_PASSWORD_MSG = 'אחד או יותר מפרטי ההזדהות שמסרת שגויים. ניתן לנסות שוב';
+const INVALID_PASSWORD_MSG = 'אחד או יותר מפרטי ההזדהות';
 
 function getPossibleLoginResults() {
   const urls: LoginOptions['possibleResults'] = {
@@ -27,11 +26,9 @@ function getPossibleLoginResults() {
         if (!options || !options.page) {
           throw new Error('missing page options argument');
         }
-        const errorMessage = await pageEvalAll(options.page, 'svg#Capa_1', '', element => {
-          return (element[0]?.parentElement?.children[1] as HTMLDivElement)?.innerText;
-        });
-
-        return errorMessage?.startsWith(INVALID_PASSWORD_MSG);
+        // Check for error message text anywhere on the page
+        const pageText = await options.page.evaluate(() => document.body.innerText);
+        return pageText.includes(INVALID_PASSWORD_MSG);
       },
     ],
     [LoginResults.AccountBlocked]: [
@@ -54,8 +51,8 @@ function getPossibleLoginResults() {
 
 function createLoginFields(credentials: ScraperSpecificCredentials) {
   return [
-    { selector: 'input[placeholder="שם משתמש"]', value: credentials.username },
-    { selector: 'input[placeholder="סיסמה"]', value: credentials.password },
+    { selector: 'input[name="user"]', value: credentials.username },
+    { selector: 'input[name="password"]', value: credentials.password },
   ];
 }
 
@@ -194,32 +191,32 @@ async function fetchTransactions(
 }
 
 async function navigateToLogin(page: Page): Promise<void> {
-  const loginButtonSelector = '.enter_account';
-  debug('wait for homepage to click on login button');
-  await waitUntilElementFound(page, loginButtonSelector);
-  debug('navigate to login page');
-  const loginUrl = await pageEval(page, loginButtonSelector, null, element => {
-    return (element as any).href;
-  });
-  debug(`navigating to page (${loginUrl})`);
-  await page.goto(loginUrl);
-  debug('waiting for page to be loaded (networkidle2)');
-  await waitForNavigation(page, { waitUntil: 'networkidle2' });
+  // LOGIN_URL already points to the login page, just wait for form elements
   debug('waiting for components of login to enter credentials');
   await Promise.all([
-    waitUntilElementFound(page, 'input[placeholder="שם משתמש"]', true),
-    waitUntilElementFound(page, 'input[placeholder="סיסמה"]', true),
+    waitUntilElementFound(page, 'input[name="user"]', true),
+    waitUntilElementFound(page, 'input[name="password"]', true),
     waitUntilElementFound(page, 'button[type="submit"]', true),
   ]);
 }
 
 async function waitForPostLogin(page: Page): Promise<void> {
+  debug('waitForPostLogin: starting detection');
   await Promise.race([
-    waitUntilElementFound(page, 'a[title="דלג לחשבון"]', true, 60000),
-    waitUntilElementFound(page, 'div.main-content', false, 60000),
-    page.waitForSelector(`xpath//div[contains(string(),"${INVALID_PASSWORD_MSG}")]`),
-    waitUntilElementFound(page, 'form[action="/changepassword"]', true, 60000), // not sure if they kept this one
+    // URL-based success detection for private accounts
+    page.waitForFunction(() => /\/ebanking\/SO\/SPA\.aspx/i.test(window.location.href), { timeout: 60000 }),
+    // URL-based success detection for business accounts
+    page.waitForFunction(() => /\/staticcontent\/digitalfront/i.test(window.location.href), { timeout: 60000 }),
+    // Invalid password error detection
+    page.waitForFunction(
+      (errMsg: string) => document.body.innerText.includes(errMsg),
+      { timeout: 60000 },
+      INVALID_PASSWORD_MSG,
+    ),
+    // Change password page
+    waitUntilElementFound(page, 'form[action="/changepassword"]', true, 60000),
   ]);
+  debug('waitForPostLogin: completed, current URL:', page.url());
 }
 
 type ScraperSpecificCredentials = { username: string; password: string };

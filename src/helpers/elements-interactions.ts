@@ -39,12 +39,14 @@ async function waitUntilIframeFound(
 }
 
 async function fillInput(pageOrFrame: Page | Frame, inputSelector: string, inputValue: string): Promise<void> {
-  await pageOrFrame.$eval(inputSelector, (input: Element) => {
-    const inputElement = input;
-    // @ts-ignore
-    inputElement.value = '';
-  });
-  await pageOrFrame.type(inputSelector, inputValue);
+  // Click to focus and select all existing content (works better with React controlled inputs)
+  await pageOrFrame.click(inputSelector, { clickCount: 3 });
+  await new Promise(r => setTimeout(r, 200));
+  // Type with delay for React controlled inputs
+  // Use page's keyboard (frames don't have keyboard property, but page does)
+  const page = 'keyboard' in pageOrFrame ? pageOrFrame : (pageOrFrame as any).page();
+  await page.keyboard.type(inputValue, { delay: 100 });
+  await new Promise(r => setTimeout(r, 300));
 }
 
 async function setValue(pageOrFrame: Page | Frame, inputSelector: string, inputValue: string): Promise<void> {
