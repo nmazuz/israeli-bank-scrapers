@@ -422,6 +422,12 @@ class IsracardAmexBaseScraper extends BaseScraperWithBrowser<ScraperSpecificCred
     debug('navigating to login page');
     await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
 
+    // Click on "או כניסה עם סיסמה קבועה" to open the password login form
+    debug('clicking on password login link');
+    await this.page.waitForSelector('#flip', { visible: true, timeout: 30000 });
+    await this.page.click('#flip');
+    await sleep(1000);
+
     this.emitProgress(ScraperProgressTypes.LoggingIn);
 
     const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
