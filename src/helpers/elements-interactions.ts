@@ -43,7 +43,9 @@ async function fillInput(pageOrFrame: Page | Frame, inputSelector: string, input
   await pageOrFrame.click(inputSelector, { clickCount: 3 });
   await new Promise(r => setTimeout(r, 200));
   // Type with delay for React controlled inputs
-  await pageOrFrame.keyboard.type(inputValue, { delay: 100 });
+  // Use page's keyboard (frames don't have keyboard property, but page does)
+  const page = 'keyboard' in pageOrFrame ? pageOrFrame : (pageOrFrame as any).page();
+  await page.keyboard.type(inputValue, { delay: 100 });
   await new Promise(r => setTimeout(r, 300));
 }
 

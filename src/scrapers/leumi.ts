@@ -208,7 +208,11 @@ async function waitForPostLogin(page: Page): Promise<void> {
     // URL-based success detection for business accounts
     page.waitForFunction(() => /\/staticcontent\/digitalfront/i.test(window.location.href), { timeout: 60000 }),
     // Invalid password error detection
-    page.waitForFunction((errMsg: string) => document.body.innerText.includes(errMsg), { timeout: 60000 }, INVALID_PASSWORD_MSG),
+    page.waitForFunction(
+      (errMsg: string) => document.body.innerText.includes(errMsg),
+      { timeout: 60000 },
+      INVALID_PASSWORD_MSG,
+    ),
     // Change password page
     waitUntilElementFound(page, 'form[action="/changepassword"]', true, 60000),
   ]);
