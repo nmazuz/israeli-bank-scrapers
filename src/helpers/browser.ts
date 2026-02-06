@@ -1,8 +1,14 @@
 import { type Page } from 'puppeteer';
 
 export async function maskHeadlessUserAgent(page: Page): Promise<void> {
-  const userAgent = await page.evaluate(() => navigator.userAgent);
-  await page.setUserAgent(userAgent.replace('HeadlessChrome/', 'Chrome/'));
+  // Set a real Chrome user agent
+  await page.setUserAgent(
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  );
+  // Remove webdriver property to avoid detection
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+  });
 }
 
 /**
